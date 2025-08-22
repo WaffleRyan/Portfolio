@@ -1,0 +1,26 @@
+<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+	<defs>
+		<style>
+			@font-face {
+				font-family: 'DMSerifDisplay';
+				src: url('/fonts/DMSerifDisplay-Regular.ttf') format('truetype');
+				font-weight: normal;
+				font-style: normal;
+				font-display: swap;
+			}
+			text { font-family: 'DMSerifDisplay', Inter, Arial, sans-serif; }
+		</style>
+		<!-- Circular path for the ring text -->
+		<path id="textcircle" d="M 100,100 m -80,0 a 80,80 0 1,1 160,0 a 80,80 0 1,1 -160,0" />
+	</defs>
+
+	<!-- Optional: invisible guide circle -->
+	<circle cx="100" cy="100" r="80" fill="none" stroke="none" />
+
+	<!-- Text around the circle -->
+	<text fill="#ffffff" font-size="16" letter-spacing="6">
+		<textPath href="#textcircle" startOffset="0%">
+			RYAN • RYAN • RYAN • RYAN • RYAN • RYAN • RYAN • RYAN • RYAN •
+		</textPath>
+	</text>
+</svg>
