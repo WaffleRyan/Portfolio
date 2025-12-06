@@ -67,7 +67,7 @@ body {
   margin: 0;
   transform: translateY(-50%);
   position: absolute;
-  top: 50vh;
+  top: 25vh;
   animation: fadeUp 2.4s ease-in-out;
   transition: all 2s ease-in-out;
 }
@@ -129,7 +129,7 @@ body {
   border-radius: 32px;
   cursor: pointer;
   display: inline-block;
-  margin-top: 320px;
+  margin-top: 0px;
   display: inline-block;
   position: relative;
   z-index: 1;
