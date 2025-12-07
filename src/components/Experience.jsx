@@ -57,7 +57,8 @@ export const Experience = () => {
           curvePoints[1].y,
           curvePoints[1].z
         ),
-        subtitle: `Hey, I'm Ryan!`,
+        title: "Hey, I'm Ryan!",
+        subtitle: `And this is my portfolio`,
       },
       {
         cameraRailDist: 1.5,
@@ -66,8 +67,8 @@ export const Experience = () => {
           curvePoints[2].y,
           curvePoints[2].z
         ),
-        title: "Talents",
-        subtitle: `I have a lot of talents that I will write here`,
+        title: "Who am I?",
+        subtitle: `I'm a first year Computer Engineering student at the University of Maryland, College Park`,
       },
       {
         cameraRailDist: -1,
@@ -76,8 +77,8 @@ export const Experience = () => {
           curvePoints[3].y,
           curvePoints[3].z
         ),
-        title: "Need help with a coding project?",
-        subtitle: `Don't worry, I can help you as long as you pay me lots`,
+        title: "What I do",
+        subtitle: `I'm a full stack developer, but I focus especially on clean, aesthetic designs`,
       },
       {
         cameraRailDist: 1.5,
@@ -87,8 +88,8 @@ export const Experience = () => {
           curvePoints[4].z - 12
         ),
         rotation: new Euler(0.7, 0, 0),
-        title: "Services",
-        subtitle: `I can help your company with websites or creating workflows`,
+        title: "Hire me to build your next project",
+        subtitle: `Whether it's a website, a workflow, or an app`,
       },
       {
         cameraRailDist: -1,
@@ -98,8 +99,8 @@ export const Experience = () => {
           curvePoints[5].z
         ),
         rotation: new Euler(0.7, 0, 0),
-        title: "Shoot for the stars",
-        subtitle: `Reach for the clouds just like Kanye said`,
+        title: "My standards are high",
+        subtitle: `No matter what you want to build, I'll make it look amazing`,
       },
     ];
   }, []);
@@ -580,6 +581,14 @@ export const Experience = () => {
               clipTransitionGliding="Teratorn_Transition-Gliding"
               clipGliding="Teratorn_Gliding"
               clipGlidingFlapping="Teratorn_Gliding-Flapping"
+              flapAudioOffset={0}
+              transitionFlyingAudioOffset={5}
+              flapAudioVolume={0.3}
+              flapAudioInterval={1.083}
+              selectionFlapInterval={0.8}
+              gustAudioVolume={1}
+              gustAudioFadeSpeed={2.0}
+              end={end}
               onFlightStart={() => { 
                 flightStarted.current = true; 
                 targetScrollScale.current = 1; // ramp scale to 1 so effective offset catches up smoothly

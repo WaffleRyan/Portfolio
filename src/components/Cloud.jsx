@@ -8,7 +8,7 @@ import React, { useRef } from "react";
 import { fadeOnBeforeCompile } from "../utils/fadeMaterial";
 
 export function Cloud({ sceneOpacity, ...props }) {
-  const { nodes, materials } = useGLTF("./models/cloud/model.gltf");
+  const { nodes, materials } = useGLTF("./models/cloud2/model.gltf");
 
   const materialRef = useRef();
 
@@ -30,4 +30,4 @@ export function Cloud({ sceneOpacity, ...props }) {
   );
 }
 
-useGLTF.preload("./models/cloud/model.gltf");
+useGLTF.preload("./models/cloud2/model.gltf");

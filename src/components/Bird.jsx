@@ -6,6 +6,7 @@ import React, { useEffect, useRef, useState, useMemo } from "react";
 import { Center, useAnimations, useGLTF, useScroll } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
+import { FlapAudio } from "./FlapAudio";
 
 // Ensure each existing track in each clip has a key at t=0 that matches its first keyed value.
 // Handles GLTF cubic-spline tracks by inserting a full triplet (inTangent, value, outTangent)
@@ -90,6 +91,8 @@ function ensureStartKeysFromFirstSample(gltf) {
 export function Bird({
   src = "./models/bird/model.glb",
   // clip names expected in GLB
+  clipIdle = "Teratorn_Idle",
+  clipTransitionFlying = "Teratorn_Transition-Flying", // Idle -> Flapping
   clip = "Teratorn_Flapping",
   clipTransitionGliding = "Teratorn_Transition-Gliding",
   clipGliding = "Teratorn_Gliding",
@@ -97,6 +100,16 @@ export function Bird({
   fastThreshold = 0.005, // lower threshold so fast intent triggers with typical scroll
   fade = 0.25,
   debug = false,
+  onFlightStart = () => {}, // callback when sustained flapping state achieved
+  // FlapAudio adjustable variables
+  flapAudioOffset = 0, // Time offset in seconds to fine-tune alignment
+  flapAudioVolume = 0.5, // Audio volume 0-1
+  flapAudioInterval = 1.083, // Expected time between flaps (12 flaps in 13 seconds = 1.083s)
+  selectionFlapInterval = 0.5, // Expected time between flaps for Teratorn_Selection animation
+  transitionFlyingAudioOffset = 0, // Time offset in seconds for transition-flying animation
+  gustAudioVolume = 0.5, // Gust audio volume 0-1
+  gustAudioFadeSpeed = 2.0, // Gust audio fade in/out speed (higher = faster)
+  end = false, // Whether scroll has reached the end
   ...props
 }) {
   const group = useRef();
@@ -128,7 +141,9 @@ export function Bird({
     // Convert offset diff to a per-second-ish velocity using delta (guard against tiny delta)
     const d2 = delta > 0 ? dOffset / delta : dOffset * 60;
     // Blend sources; offset-based tends to be small, so scale it modestly
-    const vRaw = Math.max(d1, d2 * 0.2);
+  let vRaw = Math.max(d1, d2 * 0.2);
+  // Before initial flying has begun, dampen perceived scroll speed
+  if (!hasStartedFlying.current) vRaw *= 0.001; // 1/10th speed until transition-flying complete
 
     // Exponential moving average for stability
     const alpha = 0.3; // a bit snappier than before
@@ -179,10 +194,13 @@ export function Bird({
   // Animation state machine
   const current = useRef(null);
   const isInTransition = useRef(false);
+  const isInInitialFlyTransition = useRef(false);
+  const hasStartedFlying = useRef(false); // becomes true after Idle->Flying transition completes
   const loopCounts = useRef(new Map());
   const started = useRef(false);
   const scheduledTransToGlide = useRef(false);
   const fastFlapLoopCount = useRef(0);
+  const flightStartCalled = useRef(false);
 
   const playAction = (name, { loop = THREE.LoopRepeat, clamp = false } = {}) => {
     const next = actions?.[name];
@@ -234,8 +252,10 @@ export function Bird({
     // Resolve clip names strictly (exact names provided by props)
     const available = names || [];
     const resolved = {
+      idle: clipIdle,
+      transFly: clipTransitionFlying,
       flap: clip,
-      trans: clipTransitionGliding,
+      trans: clipTransitionGliding, // Flapping -> Gliding
       glide: clipGliding,
       glideFlap: clipGlidingFlapping,
     };
@@ -246,6 +266,8 @@ export function Bird({
       console.log("[Bird] Animations available:", available);
       console.log("[Bird] Resolved:", resolved);
       [
+        ["idle", resolved.idle],
+        ["transFly", resolved.transFly],
         ["flap", resolved.flap],
         ["trans", resolved.trans],
         ["glide", resolved.glide],
@@ -257,16 +279,20 @@ export function Bird({
       });
     }
 
-    // Start with flapping (or fallback) only once
+      // Start with Idle if available, otherwise fallback to flapping (or first available)
     if (!started.current) {
-      const startName = resolved.flap && A[resolved.flap] ? resolved.flap : available[0];
+        let startName = null;
+        if (resolved.idle && A[resolved.idle]) startName = resolved.idle;
+        else if (resolved.flap && A[resolved.flap]) startName = resolved.flap;
+        else startName = available[0];
       try { mixer?.stopAllAction?.(); } catch {}
       playAction(startName, { loop: THREE.LoopRepeat });
       started.current = true;
     }
 
     const onLoop = (e) => {
-      if (isInTransition.current) return;
+  // Skip loop-driven state machine decisions while in an explicit transition (either kind)
+  if (isInTransition.current || isInInitialFlyTransition.current) return;
 
       if (debug) {
         const clipName = e.action?.getClip?.().name || "<unknown>";
@@ -276,7 +302,7 @@ export function Bird({
         console.log(`[Bird] loop end: ${clipName} -> count=${next} | isFast=${isFastRef.current}`);
       }
 
-      // Flapping: if fast at loop boundary, require one additional flap loop before transition
+  // Flapping: if fast at loop boundary, require one additional flap loop before transition to Gliding
       if (e.action === A[resolved.flap] && isFastRef.current) {
         fastFlapLoopCount.current++;
         if (fastFlapLoopCount.current < 2) {
@@ -304,6 +330,15 @@ export function Bird({
     const onFinished = (e) => {
       const clipName = e.action?.getClip?.().name || "<unknown>";
       if (debug) console.log(`[Bird] finished: ${clipName}`);
+
+      if (e.action === A[resolved.transFly]) {
+        // Finished initial Idle -> Flying transition, enter sustained flapping
+        isInInitialFlyTransition.current = false;
+        hasStartedFlying.current = true;
+  if (!flightStartCalled.current) { onFlightStart(); flightStartCalled.current = true; }
+        playAction(resolved.flap, { loop: THREE.LoopRepeat, clamp: false });
+        return;
+      }
 
       if (e.action === A[resolved.trans]) {
         // Transition ended → enter sustained Gliding
@@ -359,7 +394,49 @@ export function Bird({
         }
       }
     }
+
+    // Detect first user scroll to kick off Idle -> Transition Flying
+    if (!hasStartedFlying.current && !isInInitialFlyTransition.current) {
+      // Use either offset or delta presence to infer interaction
+      const firstScroll = (typeof window !== 'undefined') ? true : true; // placeholder
+      // We rely on scroll hook values: if any non-zero since mount
+      // (useScroll doesn't expose cumulative easily here, so piggy-back off lastOffsetRef)
+      // lastOffsetRef is updated in the other useFrame; if it's non-zero, user scrolled.
+      if (lastOffsetRef.current > 0) {
+        const resolvedNames = resolvedRef.current;
+        if (resolvedNames?.transFly && actions[resolvedNames.transFly]) {
+          isInInitialFlyTransition.current = true;
+          const a = playAction(resolvedNames.transFly, { loop: THREE.LoopOnce, clamp: false });
+          if (a) a.setLoop(THREE.LoopOnce, 1);
+        } else {
+          // Fallback straight to flapping if transition clip not found
+          hasStartedFlying.current = true;
+          if (!flightStartCalled.current) { onFlightStart(); flightStartCalled.current = true; }
+          playAction(resolvedNames.flap, { loop: THREE.LoopRepeat, clamp: false });
+        }
+      }
+    }
   });
+
+  // Get the flap action for audio sync
+  const flapActionRef = useRef(null);
+  const selectionActionRef = useRef(null);
+  useEffect(() => {
+    if (actions && resolvedRef.current) {
+      const flapName = resolvedRef.current.flap;
+      flapActionRef.current = actions[flapName] || null;
+      
+      // Get the transition-flying action (this is the "selection" animation)
+      const transFlyName = resolvedRef.current.transFly;
+      selectionActionRef.current = actions[transFlyName] || null;
+      
+      // Debug: log available actions to help find the selection animation
+      if (debug && !selectionActionRef.current) {
+        console.log("[Bird] Available actions:", Object.keys(actions));
+        console.log("[Bird] Looking for transition-flying:", transFlyName);
+      }
+    }
+  }, [actions, clip, debug]);
 
   return (
     <group ref={group} {...props} dispose={null}>
@@ -367,6 +444,24 @@ export function Bird({
       <Center>
         <primitive object={gltf.scene} />
       </Center>
+      {/* Flap audio sync */}
+      {mixer && (flapActionRef.current || selectionActionRef.current) && (
+        <FlapAudio
+          mixer={mixer}
+          flapAction={flapActionRef.current}
+          selectionAction={selectionActionRef.current}
+          currentActionRef={current}
+          resolvedRef={resolvedRef}
+          audioOffset={flapAudioOffset}
+          transitionFlyingAudioOffset={transitionFlyingAudioOffset}
+          volume={flapAudioVolume}
+          flapInterval={flapAudioInterval}
+          selectionFlapInterval={selectionFlapInterval}
+          gustAudioVolume={gustAudioVolume}
+          gustAudioFadeSpeed={gustAudioFadeSpeed}
+          end={end}
+        />
+      )}
     </group>
   );
 }

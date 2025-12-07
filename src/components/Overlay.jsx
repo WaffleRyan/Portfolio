@@ -16,7 +16,7 @@ export const Overlay = () => {
         <div className={`intro ${play ? "intro--disappear" : ""}`}>
           
           <h1 className="logo">
-            SHREYAN GHIMIRE
+            RYAN GHIMIRE
             
           </h1>
           
@@ -35,9 +35,12 @@ export const Overlay = () => {
       <div className={`outro ${end ? "outro--appear" : ""}`}>
         <div className="spinner">
               <div className="spinner__image" />
+              <div className="spinner__favicon" />
         </div>
-        <p className="outro__text">Please hire me!
-        </p>
+        <div className="outro__content">
+          <p className="outro__text">Please Hire Me!</p>
+          <p className="outro__contact">Contact me: Ryghimire@gmail.com</p>
+        </div>
       </div>
     </div>
   );
